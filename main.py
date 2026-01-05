@@ -43,19 +43,14 @@ def run_game():
         elif action == "error":
             error_message = value
 
-def render_scene(error_message=""):
-    clear_screen()
-    render_event()
-    render_options()
-    error(f"{error_message}")
     
 def game_over():
     while True:
         clear_screen()
-        print(game.current_event.description)
-        error("Game over!")
+        print(f"{game.current_event.description}\n")
+        error("Game over!\n")
 
-        print("1. Return to main menu\n2. Quit game" )
+        print("1. Return to main menu\n2. Quit game\n")
         i = input("> ")
         if i == "1":
             return
@@ -63,7 +58,7 @@ def game_over():
             quit()
 
 def new_game():
-    game.current_event = game.events["start"]
+    game.current_event = game.start
     game.flags = set()
     game.inventory.clear()
     for event in game.events.values():
@@ -71,11 +66,6 @@ def new_game():
 
 def clear_screen():
     os.system("cls" if os.name == "nt" else "clear")
-
-def render_options():
-    if game.current_event.options:
-        for key, option in game.current_event.get_options(game).items():
-            print(f"{key}. {option.description}")
 
 def ask_input(commands):
     options = game.current_event.get_options(game)
@@ -95,7 +85,7 @@ def inventory_menu():
     msg_type = "default"
     while True:
         clear_screen()
-        render_inventory()
+        inventory = render_inventory()
 
         if msg_type == "error":
             error(message)
@@ -104,11 +94,11 @@ def inventory_menu():
 
         choice = input("> ")
 
-        if choice in game.inventory.keys():
-            message = f"{game.inventory[choice].name}: {game.inventory[choice].description}"
+        if choice in inventory.keys():
+            message = f"{inventory[choice].name}: {inventory[choice].description}"
             msg_type = "default"
 
-        elif choice == f"{len(game.inventory) + 1}":
+        elif choice == f"{len(inventory) + 1}":
             return
 
         else:
@@ -118,6 +108,12 @@ def inventory_menu():
 def quit_game():
     quit()
 
+def render_scene(error_message=""):
+    clear_screen()
+    render_event()
+    render_options()
+    error(f"{error_message}")
+
 def render_inventory():
     print("Backpack items:\n")
     inventory = game.get_inventory()
@@ -125,6 +121,7 @@ def render_inventory():
         print(f"{key}. {item.name}")
 
     print(f"{len(game.inventory) + 1}. close bag")
+    return inventory
 
 def render_event():
     event = game.current_event
@@ -132,6 +129,12 @@ def render_event():
     for treasure in event.treasure:
         success(f"{treasure.name} added to inventory\n")
     event.resolve(game)
+
+def render_options():
+    if game.current_event.options:
+        for key, option in game.current_event.get_options(game).items():
+            print(f"{key}. {option.description}")
+
       
 def main_menu(error_message):
     clear_screen() 
