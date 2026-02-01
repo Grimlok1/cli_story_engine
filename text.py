@@ -2,6 +2,13 @@ START = """Markus haluaa lähteä Joosepin luo kyläilemään, mutta ilmanlämp�
 Miten Markusksen pitäsi pukeutua, jotta hän selviää viiden kilometrin kävely matkasta paleltumatta?
 """
 
+HERÄTYS = """Heräät lapsuunkodistasi Torniosta, jossa vierailet vanhempiesi luona aina välillä.
+Olet päättänyt lähteä tänään aamusta ystäväsi Joosepin luo. Aloitatko aamusi nauttimalla aamupalaa?
+"""
+
+AAMUPALA = """Päätät lopulta ottaa hieman aamupalaa, mutta mitä?
+"""
+
 VILLAHOUSUT="""Pääset noin 500 metrin matkan kotoasi kunnes huomaat, että villahousut ovat avainliian kuumat.
 Mitään ei ole enää tehtävissä. Tunnet kuinka kehosi peittyy kautaalta hiestä!
 Hävisit pelin!"""

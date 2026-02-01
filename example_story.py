@@ -1,32 +1,24 @@
-from story_builder import StoryBuilder
 from game import Game
 import text
+#----Scene-----
 
 game = Game("Markuksen villahousupeli") #Game object
-story = StoryBuilder(game)
-story.event("aamupala", "Syötkö aamupalan")
-story.event("start", text.START)
-story.event("häviö", text.VILLAHOUSUT)
-story.event("voitto", "\"Onpa mukavan viileä.\" Voitit pelin!")
-story.event("kalsarit", text.KALSARIT) 
-story.event("riisu_kalsarit", text.RIISU_KALSARIT)
-story.event("hyppää_lumeen", text.HYPPÄÄ_LUMEEN)
-story.event("juokse", text.JUOKSE)
-story.conditional_event("nälkä", "voi ei unohdit syödä aamupalan ja nyt sinulla on nälkä, hävisit pelin!", required_flags=["nälkä"])
+game.scene("herätys", text.HERÄTYS)
+game.scene("aamupala", text.AAMUPALA)
+game.scene("murot", "syöt aamupalaksi ravitsevia muroja")
+game.scene("leipä", "otat aamupalaksi hieman paahtoleipää")
+game.scene("banaani", "Syöt aamupalaksi yhden banaanin")
+game.scene("loppu", "peli loppui!")
 
-story.option("aamupala", "Kyllä", "start")
-story.option("aamupala", "Ei", "start", flag="nälkä")
-story.option("start", "Pue villa housut", "häviö")
-story.option("start", "Pue kalsarit", "kalsarit", conditional_events=["nälkä"])
-story.option("start", "Älä pue", "voitto")
+#----Options-----
+game.option("herätys", "loppu", "kyllä")
+game.option("herätys", "loppu", "ei")
+game.option("aamupala", "murot", "syö muroja")
+game.option("aamupala", "leipä", "syö ruisleipää")
+game.option("aamupala", "banaani", "syö banaani")
+game.option
+#----Validate----
 
-story.option("kalsarit", "riisu kalsarit", "riisu_kalsarit")
-story.option("kalsarit", "hyppää äkkiä lumihankeen!", "hyppää_lumeen")
-story.option("kalsarit", "juokse äkkiä joosepin luo", "juokse")
+game.validate("aamupala")
 
-story.treasure("start", "Villahousut", "Perinteiset suomalaiset villahousut. Erittäin lämpimät")
-story.treasure("start", "Kalsarit", "Perinteiset suomalaiset pitkät kalsarit melko lämpimät")
 
-story.validate("aamupala")
-
-#Events
