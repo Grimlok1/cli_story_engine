@@ -9,18 +9,13 @@ class StoryBuilder:
             raise ValueError(f"Event {name} already exists")
 
         self.game.events[name] = Event(description)
-        
-    def conditional_event(self, name, description, required_flags=None, required_items=None):
-        if name in self.game.conditional_events:
-            raise ValueError(f"Event {name} already exists")
-            
-        self.game.conditional_events[name] = ConditionalEvent(description, required_flags, required_items) 
+       
 
     def option(self, from_event, description, to_event, *, conditional_events=None, required_flags=None, required_items=None, flag=None):
         source = self._get_event(from_event)
         def_event = self._get_event(to_event)
         
-        if conditional_events: #ärsyttävä bugi jos ei anna listaa parametrinä conditional_eventsille
+        if conditional_events:
             conditional_events_obj = [self._get_conditional_event(name) for name in conditional_events]
         else:
             conditional_events_obj = None
@@ -36,6 +31,8 @@ class StoryBuilder:
 
     def validate(self, start):
         #ConditionalEvent cannot be a start event
+        
+        
         if start not in self.game.events:
             raise ValueError(f"Start event '{start}' does not exist")
 
@@ -72,10 +69,4 @@ class StoryBuilder:
             return self.game.events[name]
         except KeyError:
             raise ValueError(f"Event {name} does not exist")
-            
-    def _get_conditional_event(self, name):
-        try:
-            return self.game.conditional_events[name]
-        except KeyError:
-            raise ValueError(f"ConditionalEvent {name} does not exist")
         

@@ -24,7 +24,7 @@ def run_game():
     error_message = "" #reset after display
 
     while True:
-        render_scene(error_message)
+        render_scene(error_message) #render scene and set current_event
 
         error_message = "" #reset after display
 
@@ -33,9 +33,10 @@ def run_game():
             return
 
         action, value = ask_input(commands)
-
-        if action == "event":
-            game.current_event = value.get_next_event(game)
+        
+        #resolve option
+        if action == "option":
+            game.current_scene = value.target #set current_scene
 
         elif action == "command":
             value()
@@ -43,26 +44,18 @@ def run_game():
         elif action == "error":
             error_message = value
 
-    
-def game_over():
-    while True:
-        clear_screen()
-        print(f"{game.current_event.description}\n")
-        error("Game over!\n")
-
-        print("1. Return to main menu\n2. Quit game\n")
-        i = input("> ")
-        if i == "1":
-            return
-        elif i == "2":
-            quit()
+#-----------------FUNCTIONS--------------    
+def quit_game():
+    quit()
 
 def new_game():
-    game.current_event = game.start
+    game.current_scene = game.start_scene
     game.flags = set()
     game.inventory.clear()
-    for event in game.events.values():
-        event.visited = False
+    
+    ###FIX
+    #for event in game.events.values(): Korjaa MYÖHEMMIN!
+        #event.visited = False
 
 def clear_screen():
     os.system("cls" if os.name == "nt" else "clear")
@@ -72,14 +65,15 @@ def ask_input(commands):
     choice = input("> ")
 
     if choice in options.keys():
-        return ("event", options[choice])
+        return ("option", options[choice])
 
     elif choice in commands:
         return ("command", commands[choice])
 
     else:
         return ("error", "Invalid input!")
-
+        
+#------------------------MENUS---------------
 def inventory_menu():
     message = ""
     msg_type = "default"
@@ -104,16 +98,37 @@ def inventory_menu():
         else:
             message = "Invalid input!"
             msg_type = "error"
+            
+def main_menu(error_message):
+    clear_screen() 
+    print(f"{game.name}\n")
+    print("1. Start game\n2. Quit game\n")
+    error(error_message)
 
-def quit_game():
-    quit()
+    return input("> ")
+    
+def game_over():
+    while True:
+        clear_screen()
+        print(f"{game.current_event.description}\n")
+        error("Game over!\n")
+
+        print("1. Return to main menu\n2. Quit game\n")
+        i = input("> ")
+        if i == "1":
+            return
+        elif i == "2":
+            quit()
+
+#----------------Rendering-------------------
 
 def render_scene(error_message=""):
+    game.current_scene.set_current_event(game) #set current event
     clear_screen()
     render_event()
     render_options()
     error(f"{error_message}")
-
+    
 def render_inventory():
     print("Backpack items:\n")
     inventory = game.get_inventory()
@@ -129,20 +144,13 @@ def render_event():
     for treasure in event.treasure:
         success(f"{treasure.name} added to inventory\n")
     event.resolve(game)
-
+    
 def render_options():
     if game.current_event.options:
         for key, option in game.current_event.get_options(game).items():
             print(f"{key}. {option.description}")
 
       
-def main_menu(error_message):
-    clear_screen() 
-    print(f"{game.name}\n")
-    print("1. Start game\n2. Quit game\n")
-    error(error_message)
-
-    return input("> ")
 
 if __name__ == "__main__":
     main()
