@@ -1,140 +1,157 @@
 class Game: #Game object is used to create all other objects
     def __init__(self, name):
-        self.flags = set()
         self.inventory = []
-        self.scenes = {}
-        self.events = []
-        self.options = []
+        self.story_nodes = {}
+        self.visited_nodes = set() #list of StoryNode.name. Same function as flags
         self.name = name
-        self.current_scene = None
-        self.current_event = None
-        self.start_scene = None
+        self.current_story_node = None
+        self.start_story_node = None
         
-    #check if scene already exits
-    def check_scene(self, name):
-        if name in self.scenes.keys():
-            ValueError(f"Scene {name} already exists")
+    #check if story_node already exits
+    def check_story_node(self, name):
+        if name in self.story_nodes.keys():
+            raise ValueError(f"StoryNode {name} already exists")
             
-    def check_for_items(self, items): #return true if flags is empty
-        ls = set([treasure.name for treasure in self.inventory])
-        return items.issubset(ls)
+    def check_for_items(self, items: set): #return true if flags are empty
+        if not items:
+            return  True
+            
+        for item in items:
+            if item not in self.inventory:
+                return False
+        return True
         
-    def check_for_flags(self, flags): #return true if flags is empty
-        flags = set(flags)
-        return flags.issubset(self.flags)
+    def check_visited_nodes(self, nodes: set): #return true if node is visited
+        if not nodes:
+            return True
+            
+        for node in nodes:
+            if node not in self.visited_nodes:
+                return False
+        return True
 
     def get_inventory(self):
         return {str(index) : element for (index, element) in enumerate(self.inventory, start=1)}
-        
+            
     
         
     #----------create objects---------------
     
-    def scene(self, name, description):
-        self.check_scene(name)
-        self.scenes[name] = self.Scene(description)
-     
-    def option(self, source, target, description, *, event="default", required_flags=None, required_items=None, flag=None):
-        scene = _get_scene(self, source) #get scene function
-        target_scene =  _get_scene(self, target)
+    def story_node(self, *, name, desc, next_node=None):
+        self.check_story_node(name)
+        self.story_nodes[name] = StoryNode(name, desc, next_node)
         
-        option = self.Option(description, target_scene, required_flags, required_items, flag)
-        scene.events[event].options.append(option)
-        self.options.append(option) #for validation
+    #StoryNode can have multiple conditional alternatives   
+    def alternative(self, *, node, name, desc, next_node=None, required_items=None, visited_nodes=None):
     
-    def treasure(self, source, *, event="default"):
-        scene = _get_scene(self, source) #get scene
+        if visited_nodes is None and required_items is None:
+            raise ValueError("At least one of 'visited_nodes' or 'required_items' must be provided")
+            
+        story_node = _get_story_node(self, node)
+        alternative_node = StoryNode(name, desc, next_node)
+        alternative_node.required_items = _ensure_set(required_items, "required_items")
+        alternative_node.visited_nodes = _ensure_set(visited_nodes, "visited_nodes")
+        story_node.alternatives.append(alternative_node)
+     
+    def choice(self, *, node, desc: str, target: str, visited_nodes=None, required_items=None, exhaustible=False):
+        story_node = _get_story_node(self, node) #get StoryNode object
+        choice = Choice(desc, target, visited_nodes, required_items, exhaustible)
+        story_node.choices.append(choice)
         
-        treasure = self.Treasure(name, description)
-        scene.events[event].treasure.append(treasure)
-        self.treasures.append(treasure) #for validation
-        
-    def event(self, source, name, description, *, required_flags=None, required_items=None):
-        if required_flags is None and required_items is None:
-            ValueError("At least of of 'required_flags' or 'required_items' must be provided")
-        scene = _get_scene(self, source)
-        event = Event(description, required_flags, required_items)
-        scene.events[name] = event
-        self.events.append(event)
-        
+
+    def treasure(self, *, node, name, description):
+        story_node = _get_story_node(self, node)#get StoryNode object
+        story_node.treasure.append(Treasure(name, description))
+
     #-----------validate-----------------
     
     def validate(self, start):
         
-        if start not in self.scenes.keys():
-            raise ValueError(f"Start event '{start}' does not exist")
+        if start not in self.story_nodes.keys():
+            raise ValueError(f"Start state '{start}' does not exist")
         else:
-            self.start_scene = self.scenes[start]
+            self.start_story_node = self.story_nodes[start]
+  
+        all_choices = [choice for story_node in self.story_nodes.values() for choice in story_node.choices]
+        all_flags = [story_node.name for story_node in self.story_nodes.values()] #same as the story_node names
+       
+                    
+        for story_node in self.story_nodes.values():
+            if story_node.next_story_node and story_node.next_story_node not in self.story_nodes.keys():
+                    raise ValueError(f"{story_node.name} variable next_story_node. Doesn't point to a valid StoryNode")
+                    
+        for choice in all_choices:
+            for node in choice.visited_nodes:
+                if node not in self.story_nodes:
+                    raise ValueError(f"{node} is not a valid StoryNode")
+                    
+        for choice in all_choices:
+            if choice.target not in self.story_nodes.keys():
+                raise ValueError(f"{choice.target} is not a valid StoryNode")
+        
+
+#StoryNode can have different variants  
+class StoryNode:
+    def __init__(self, name, description, next_story_node=None):
+        self.name = name
+        self.description = description
+        self.next_story_node = next_story_node
+        self.alternatives = [] #hold alternative StoryNodes
+        self.choices = []
+        self.treasure = []
+          
+        #set by game.alternative()
+        self.required_items = None
+        self.visited_nodes = None
+   
+    def get_story_node(self, game):
+        for alternative in self.alternatives:
+            if alternative.check_alternative(game):
+                return alternative
+        return self
+
+    def get_choices(self, game): 
+        available_choices = {}
+        i = 1
+        for choice in self.choices:
+            if choice.get_choice(game):
+                available_choices[str(i)] = choice
+                i += 1
+        return available_choices
+            
+    def check_alternative(self, game):
+        return (game.check_visited_nodes(self.visited_nodes) and game.check_for_items(self.required_items))
+        
+        
+#StoryNode can have multiple Choices
+##MOVE FLAG TO STORYNODE!
+class Choice:
+    def __init__(self, description: str, target: str, visited_nodes=None, required_items=None, exhaustible=False):
+        self.description = description
+        self.target = target #game.story_nodes[target] -> StoryNode
+        
+        self.visited_nodes = _ensure_set(visited_nodes, "visited_nodes")
+        self.required_items = _ensure_set(required_items, "required_items")
+        
+        #Only set exhaustible to true if you are going to be returning to the storynode and you don't want the choice to show up again.
+        self.exhaustible = exhaustible
+        self.exhausted = False
+          
+    def get_choice(self, game):
+        if game.check_visited_nodes(self.visited_nodes) and game.check_for_items(self.required_items) and not self.exhausted:
+            return True
+        else:
+            return False
  
-        for option in self.options:
-            if option.target not in self.scenes.values():
-                raise ValueError(f"Option point to a unknown scene: {option.target}")
-                
-        for event in self.events:
-            if event.treasure not in self.treasure:
-                    raise ValueError(f"{event.tresure} is not a valid Treasure object")
+class Treasure:
+    def __init__(self, name, description):
+        self.name = name
+        self.description = description
         
-    class Scene:
-        def __init__(self, description):
-            self.events = {}
-            self.events["default"] = self.Event(description)
-            
-        def set_current_event(self, game): #ota pelkästää alternative eventit
-            current_event = self.events["default"]
-            for key, event in self.events.items():
-                if event.check_event(game) and key != "default":
-                    current_event = event
-            game.current_event = current_event
-                
 
-        class Event:
-            #lisää myöhemmin mahdollisuus lisätä monta kuvausta... ehkä
-            def __init__(self, description, required_flags=None, required_items=None):
-                self.description = description
-                self.required_flags = _ensure_set(required_flags, "required_flags")
-                self.required_items = _ensure_set(required_items, "required_items")
-                self.options = []
-                self.treasure = []
-                self.visited = False
-                    
-            def check_event(self, game):
-                if game.check_for_flags(self.required_flags) and game.check_for_items(self.required_items):
-                    return True
-                    
-            def resolve(self, game):
-                #add items to inventory
-                if not self.visited:
-                    for treasure in self.treasure:
-                        game.inventory.append(treasure)
-                    self.visited = True
-              
-            def get_options(self, game): 
-                available_options = {}
-                i = 1
-                for option in self.options:
-                    if option.check_option(game):
-                        available_options[str(i)] = option
-                        i += 1
-                return available_options
 
-    class Option:
-        def __init__(self, description, target, required_flags=None, required_items=None, flag=None):
-            self.description = description
-            self.target = target #scene ->
-            self.flag = flag
-            self.required_flags = _ensure_set(required_flags, "required_flags")
-            self.required_items = _ensure_set(required_items, "required_items")
+#--------------Functions------------------
             
-            
-        def check_option(self, game):
-            if game.check_for_flags(self.required_flags) and game.check_for_items(self.required_items):
-                return True
-        
-    class Treasure:
-        def __init__(self, name, description):
-            self.name = name
-            self.description = description
-                
 def _ensure_set(value, name):
     if value is None:
         return set()
@@ -144,8 +161,8 @@ def _ensure_set(value, name):
         )
     return set(value)
     
-def _get_scene(game, name):
+def _get_story_node(game, name):
     try:
-        return game.scenes[name]
+        return game.story_nodes[name]
     except KeyError:
-        raise ValueError(f"Event {name} does not exist")
+        raise ValueError(f"StoryNode {name} does not exist")
