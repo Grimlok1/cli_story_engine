@@ -1,24 +1,32 @@
 from game import Game
 import text
+
+#final clean up and then i'm done with this
+#changes to the validation perhaps
 #----Scene-----
 
-game = Game("Markuksen villahousupeli") #Game object
-game.scene("herätys", text.HERÄTYS)
-game.scene("aamupala", text.AAMUPALA)
-game.scene("murot", "syöt aamupalaksi ravitsevia muroja")
-game.scene("leipä", "otat aamupalaksi hieman paahtoleipää")
-game.scene("banaani", "Syöt aamupalaksi yhden banaanin")
-game.scene("loppu", "peli loppui!")
+game = Game("Conversation Demo") #Game object
 
-#----Options-----
-game.option("herätys", "loppu", "kyllä")
-game.option("herätys", "loppu", "ei")
-game.option("aamupala", "murot", "syö muroja")
-game.option("aamupala", "leipä", "syö ruisleipää")
-game.option("aamupala", "banaani", "syö banaani")
-game.option
+game.story_node(name="start", desc="Hey, where am i?", next_node="voice1")
+game.story_node(name="voice1", desc="You are where you are. Is there anything else you\'d like to know?")
+game.choice(node="voice1", desc="Yes", target="voice")
+
+game.story_node(name="voice", desc="What do you want to know?", next_node="wake_up")
+game.choice(node="voice", desc="Who are you?", target="who", exhaustible=True)
+game.choice(node="voice", desc="Where am i", target="where", exhaustible=True)
+game.choice(node="voice", desc="What is the meaning of all this?", target="what", exhaustible=True, visited_nodes=["who", "where"])
+
+game.story_node(name="what", desc="Nothing really", next_node="wake_up")
+game.story_node(name="who", desc="No one important really", next_node="voice")
+game.story_node(name="where", desc="Didn\'t you hear what i said", next_node="voice")
+game.story_node(name="wake_up", desc="Well this has been a waste of time. Time to wake up!")
+
+
+
+
+
 #----Validate----
 
-game.validate("aamupala")
+game.validate("start")
 
 
