@@ -55,9 +55,10 @@ def run_cli(game):
     
 
 def run_game(state_machine):
-    render_story_node(state_machine)
-    render_treasure(state_machine) #if any
-    choices = render_choices(state_machine) #if any
+    game = state_machine.game
+    render_story_node(game)
+    render_treasure(game)
+    choices = render_choices(game)
     advance_story(state_machine, choices)
     
     
@@ -66,51 +67,29 @@ def run_game(state_machine):
 def advance_story(state_machine, choices):
 
     if choices:
-        ask_input(state_machine, choices)
-        return False
+        user_input = input(">")
+        if user_input in state_machine.commands:
+            state_machine.commands[user_input]()
+        else:
+            state_machine.game.resolve_input(user_input, choices)
+        return
         
     #If no available choices and the next_story_node is set. Change to the next story_node >
-    if state_machine.game.current_story_node.next_story_node:
-        state_machine.game.current_story_node = state_machine.game.current_story_node.next_story_node
+    elif state_machine.game.current_story_node.next_story_node:
+        state_machine.game.next_story_node()
         input("\n(Press Enter)")
         
     #If no available choices. Game over!
     else:
         state_machine.change_state("game_over")
-   
-    return True
-
     
 def quit_game():
     print("Quitting game...")
     quit()
     
-
-def new_game(state_machine):
-    state_machine.game.current_story_node = state_machine.game.start_story_node
-    state_machine.game.inventory.clear()
-    state_machine.game.visited_nodes.clear()
-    
-    #reset story_nodes
-    for story_node in state_machine.game.story_nodes.values():
-        for choice in story_node.choices:
-            choice.exhausted = False
-   
 def clear_screen():
     os.system("cls" if os.name == "nt" else "clear")
-
-def ask_input(state_machine, choices):
-    choice = input("> ")
-    
-    #resolve choice
-    if choice in choices.keys():
-        resolve_choice(choices[choice], state_machine)
-    
-    elif choice in state_machine.commands:
-        state_machine.commands[choice]()
-
-
-        
+     
 #------------------------MENUS---------------
 def pop_up_menu(state_machine):
     print("Are you sure you want to quit?\n")
@@ -130,7 +109,7 @@ def main_menu(state_machine):
 
     i = input("> ")
     if i == "1":
-        new_game(state_machine)
+        state_machine.game.new_game()
         state_machine.change_state("run_game")
     elif i == "2":
         state_machine.change_state("help_menu")
@@ -149,7 +128,6 @@ def inventory_menu(state_machine):
     
     choice = input("> ")
     if choice in inventory.keys():
-        print(f"{inventory[choice].name}: {inventory[choice].description}")
         state_machine.change_state("item_menu")
         state_machine.state.set_arguments(item = inventory[choice]) #
         
@@ -184,40 +162,41 @@ def render_title(title):
     print()
     
     
-def render_story_node(state_machine):
-    state_machine.game.current_story_node = state_machine.game.current_story_node.get_story_node(state_machine.game)
-    info(f"{state_machine.game.current_story_node.description}\n")
+def render_story_node(game):
+    info(f"{game.current_story_node.description}\n")
     
 
-def render_treasure(state_machine):
-    if state_machine.game.current_story_node not in state_machine.game.visited_nodes: #somehow is always true!!!
-        for treasure in state_machine.game.current_story_node.treasure:
-            success(f"{treasure.name} added to inventory\n")
-            state_machine.game.inventory.append(treasure)
-        state_machine.game.visited_nodes.add(state_machine.game.current_story_node) #add node to visited. Perhaps create a resolve funtion for story node
-    
-def render_choices(state_machine):
-    choices = state_machine.game.current_story_node.get_choices(state_machine.game)
-  
-    for key, choice in choices.items():
-        print(f"{key}. {choice.description}")
-    return choices
+def render_treasure(game):
+    treasures = game.get_treasures()
+    if treasures:
+        for treasure in treasures:
+            print(f"{treasure.name} added to inventory")
+            game.add_item(treasure)
+    else:
+        return
+        
+def render_choices(game):
+    choices = game.get_choices()
+    if choices:
+        for key, choice in choices.items():
+            print(f"{key}. {choice.description}")
+        return choices
+    else:
+        return False
 
 def render_inventory(state_machine): #render the content of the bag
     render_title("Backpack")
     inventory = state_machine.game.get_inventory()
-    for key, item in inventory.items():
-        print(f"{key}. {item.name}")
+    if inventory:
+        for key, item in inventory.items():
+            print(f"{key}. {item.name}")
+    else:
+        print("Backpack is empty")
 
     print(f"{len(state_machine.game.inventory) + 1}. Close backpack")
     return inventory
     
 #----------------------------------------------------
-def resolve_choice(choice, state_machine):
-    if choice.exhaustible:
-        choice.exhausted = True
-    state_machine.game.current_story_node = choice.target
-
 
 if __name__ == "__main__":
     main()
