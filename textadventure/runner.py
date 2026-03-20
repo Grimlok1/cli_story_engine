@@ -8,8 +8,9 @@ class StateMachine:
         self.states = {}
         self.state = None
         
-    def change_state(self, name):
+    def change_state(self, name, **kwargs):
         self.state = self.states[name]
+        self.state.kwargs = kwargs
           
     def create_state(self, name, func):
         self.states[name] = State(self, func)
@@ -21,14 +22,11 @@ class State:
     def __init__(self, state_machine, func):
         self.func = func
         self.state_machine = state_machine
-        self.arguments = {}
+        self.kwargs = {}
         
     def run(self):
         clear_screen()
-        self.func(self.state_machine, **self.arguments)
-        
-    def set_arguments(self, **arguments):
-        self.arguments = arguments
+        self.func(self.state_machine, **self.kwargs)
         
         
 def run_cli(game):
@@ -53,35 +51,36 @@ def run_cli(game):
     while True:
         state_machine.run()
     
+#-------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------
 
 def run_game(state_machine):
     game = state_machine.game
-    render_story_node(game)
-    render_treasure(game)
+    render_descriptions(game)
     choices = render_choices(game)
-    advance_story(state_machine, choices)
     
-    
-#-----------------FUNCTIONS--------------
-
-def advance_story(state_machine, choices):
-
-    if choices:
-        user_input = input(">")
-        if user_input in state_machine.commands:
-            state_machine.commands[user_input]()
+    if not choices:
+        if game.current_story_node.next_story_node: #change to next_story_node
+            game.change_story_node(game.current_story_node.next_story_node)
         else:
-            state_machine.game.resolve_input(user_input, choices)
+            state_machine.change_state("game_over") #game over
         return
+            
+    handle_user_input(state_machine, choices)
+    
+def handle_user_input(state_machine, choices):
+    user_input = input(">")
+    if user_input in state_machine.commands: #execute a command
+        state_machine.commands[user_input]()
         
-    #If no available choices and the next_story_node is set. Change to the next story_node >
-    elif state_machine.game.current_story_node.next_story_node:
-        state_machine.game.next_story_node()
-        input("\n(Press Enter)")
+    elif user_input in choices.keys(): #resolve player choice
+        choice = choices[user_input]
+        if choice.transition:
+            render_text(choice.transition)
+            input("Continue...")
+        state_machine.game.resolve_choice(choice)
         
-    #If no available choices. Game over!
-    else:
-        state_machine.change_state("game_over")
+#-----------------FUNCTIONS--------------
     
 def quit_game():
     print("Quitting game...")
@@ -128,8 +127,7 @@ def inventory_menu(state_machine):
     
     choice = input("> ")
     if choice in inventory.keys():
-        state_machine.change_state("item_menu")
-        state_machine.state.set_arguments(item = inventory[choice]) #
+        state_machine.change_state("item_menu", item=inventory[choice])
         
     elif choice == f"{len(inventory) + 1}":
         state_machine.change_state("run_game")
@@ -142,7 +140,7 @@ def item_menu(state_machine, item):
     
 
 def game_over(state_machine):
-    info(f"{state_machine.game.current_story_node.description}\n") #game over StoryNode displaying the text for one frame and then changing the state to game_over seems a bit redundant. Perhaps rework this.
+    info(f"{state_machine.game.get_current_description()["text"]}") #game over StoryNode displaying the text for one frame and then changing the state to game_over seems a bit redundant. Perhaps rework this.
     error("Game over!\n")
 
     print("1. Return to main menu\n2. Quit game")
@@ -162,24 +160,35 @@ def render_title(title):
     print()
     
     
-def render_story_node(game):
-    info(f"{game.current_story_node.description}\n")
+def render_descriptions(game):
+    node = game.current_story_node
+    descriptions = node.descriptions
+        
+    while True:
+        description = game.get_current_description()
+        render_text(description["text"])
+        
+        if description["treasure"]:
+            render_treasure(game, description["treasure"])
+        if node.current_step == len(node.descriptions) - 1:
+            return
+        else:
+            input("Continue...")
     
-
-def render_treasure(game):
-    treasures = game.get_treasures()
-    if treasures:
-        for treasure in treasures:
-            print(f"{treasure.name} added to inventory")
-            game.add_item(treasure)
-    else:
-        return
+def render_text(text):
+    clear_screen()
+    info(text)
+    
+def render_treasure(game, treasure):
+    if not treasure.taken:
+        success(f"{treasure.name} added to inventory")
+        game.add_item(treasure)
         
 def render_choices(game):
     choices = game.get_choices()
     if choices:
         for key, choice in choices.items():
-            print(f"{key}. {choice.description}")
+            print(f"{key}. {choice.text}")
         return choices
     else:
         return False
