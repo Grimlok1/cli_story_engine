@@ -65,23 +65,30 @@ def run_game(state_machine):
         else:
             state_machine.change_state("game_over") #game over
         return
-            
-    handle_user_input(state_machine, choices)
-    
-def handle_user_input(state_machine, choices):
+        
     user_input = input(">")
+    handle_user_input(state_machine, user_input)
+           
+#-----------------FUNCTIONS--------------
+def handle_user_input(state_machine, user_input): #user_input should be something like: 1, 2, 3, 4
+    game = state_machine.game
     if user_input in state_machine.commands: #execute a command
         state_machine.commands[user_input]()
+        return
         
-    elif user_input in choices.keys(): #resolve player choice
+    choices = game.get_choices()
+    if user_input in choices.keys():
         choice = choices[user_input]
-        if choice.transition:
-            render_text(choice.transition)
-            input("Continue...")
-        state_machine.game.resolve_choice(choice)
+        resolve_choice(game, choice) 
+       
+            
+def resolve_choice(game, choice):
+    if choice.transition:
+        render_text(choice.transition)
+        input("Continue...")
+    choice.resolve()
+    game.change_story_node(choice.target)
         
-#-----------------FUNCTIONS--------------
-    
 def quit_game():
     print("Quitting game...")
     quit()
@@ -163,8 +170,13 @@ def render_title(title):
 def render_descriptions(game):
     node = game.current_story_node
     descriptions = node.descriptions
+    if node.mode == "random":
+        description = get_random_description(self)
+        render_text(description)
+    else:
         
     while True:
+        
         description = game.get_current_description()
         render_text(description["text"])
         

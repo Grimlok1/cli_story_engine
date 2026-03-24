@@ -1,3 +1,4 @@
+import random
 class Game: #Game object is used to create all other objects
     def __init__(self, name):
         self.inventory = [] #player inventory
@@ -13,9 +14,9 @@ class Game: #Game object is used to create all other objects
     def has_flag(self, flag):
         if flag.startswith("has:"):
             item_name = flag.split(":", 1)[1]
-            return item_name in [item.name for item in self.inventory]
+            return item_name in [item.name for item in self.inventory] #True or False
 
-        return flag in self.flags
+        return flag in self.flags #True of False
         
     def has_flags(self, flags):
         for flag in flags:
@@ -27,18 +28,8 @@ class Game: #Game object is used to create all other objects
         return {str(index) : element for (index, element) in enumerate(self.inventory, start=1)}
         
     def get_choices(self):
-        choices = self.current_story_node.choices
-        if not choices:
-            return False
-            
-        available_choices = {}
-        i = 1
-       
-        for choice in choices:
-            if self.has_flags(choice.required_flags):
-                available_choices[str(i)] = choice
-                i += 1
-        return available_choices
+        choices = self.current_story_node.get_choices()
+        return {str(index): choice for index, choice in enumerate(choices, start=1) if self.has_flags(choice.required_flags)}
         
     def get_treasures(self):
         return self.current_story_node.treasure
@@ -60,7 +51,7 @@ class Game: #Game object is used to create all other objects
     def change_story_node(self, story_node):
         if self.current_story_node:
             self.node_visited() #set flag that the node has been visited
-            self.current_story_node.reset_descriptions()
+            self.current_story_node.reset_description()
         self.current_story_node = story_node.get_story_node(self)
         self.current_story_node.resolve()
         
@@ -87,9 +78,9 @@ class Game: #Game object is used to create all other objects
         
     #----------create objects---------------
     
-    def story_node(self, *, name, desc, next_node=None, treasure=None):
+    def story_node(self, *, name, desc, next_node=None, treasure=None, **directions):
         _check_story_node(self, name)
-        self.story_nodes[name] = StoryNode(name, desc, next_node, treasure)
+        self.story_nodes[name] = StoryNode(name, desc, next_node, treasure, **directions)
           
     #StoryNode can have multiple conditional alternatives   
     def alternative(self, *, node, name, desc, next_node=None, required_flags=None):
@@ -125,31 +116,6 @@ class Game: #Game object is used to create all other objects
         
     def add_callback(self, time, function, *args):
         self.timer.add_callback(time, lambda: function(*args))
-        
-    #used to connect the nodes together so that the player can move trough them
-    def directions(self, node:str, directions**):
-        story_node = _get_story_node(self, node)
-        for key, value in directions.items():
-            if key not in ["east", "west", "south", "north"]:
-                raise ValueError(f"{key} is not a valid direction")
-            story_node.directions[key] = value #save values as strings not actual StoryNodes. Will be changes to StoryNodes in the validation
-            
-    def connect_nodes(self, node):
-        source_node = _get_story_node(node)
-        for direction, node_name in source_node.directions:
-            node = _get_story_node(node_name)
-            source_node.connect_node(direction, node)
-            
-    def handle_user_input(self, user_input): #user input is in form 1, 2, 3, 4
-        choices = self.current_story_node.keys()
-        directions = self.directions.keys()
-        if user_input in choices:
-            choice = choice[user_input]
-            choice.resolve()
-            self.change_story_node(choice.target)
-            
-        elif user_input in directions:
-            self.change_story_node(directions[keys])
             
     #-----------validate-----------------
     
@@ -170,9 +136,6 @@ class Game: #Game object is used to create all other objects
                 node = _get_story_node(self, choice.target)
                 choice.set_target(node)
                 
-        for story_node in self.story_nodes:
-            connect_nodes(story_node)
-                
             #replace this code later
             """    
             for i, item in enumerate(choice.required_items): #required items
@@ -184,7 +147,7 @@ class Game: #Game object is used to create all other objects
 
 #StoryNode can have different conditional variants based on flags  
 class StoryNode:
-    def __init__(self, name, description, next_story_node=None, treasure=None):
+    def __init__(self, name, description, next_story_node=None, treasure=None, mode="normal" **directions):
         self.name = name
         self.descriptions = []
         self.next_story_node = next_story_node #next_story_node is a string
@@ -192,36 +155,53 @@ class StoryNode:
         self.choices = []
         self.treasure = []
         self.on_enter = []
-        self.directions = {} #possible movement options and the nodes they lead into
         self.current_step = 0
+        self.mode = mode #set random to get radom description
         
+        #normalize description to list
+        if isinstance(description, list):
+            self.description = description
+        else:
+            self.description = [description]
+            
         #Store the first description
         self.store_description(description, treasure)
       
         #set by game.alternative()
         self.required_flags = list()
-          
+        #add movement options/choices
+        self.add_movement(directions)
+        
+    def add_movement(self, directions):
+        for key, node in directions.items():
+            if key in ["north", "south", "east", "west"]:
+                self.choices.append(Choice(f"Move {key}", target=node))
+            else:
+                raise ValueError(f"{key} is not a valid movement choice")
+        
     def get_story_node(self, game):
         for alternative in self.alternatives:
             if self.has_flags(alternative.flags):
                 return alternative
         return self
         
-    def get_description(self):
-        description = self.descriptions[self.current_step]
-        if self.current_step < len(self.descriptions) - 1:
-            self.current_step += 1
-        return description
+    def get_descriptions(self): #modified to return all the descriptions
+        if mode == "random":
+            return self.get_random_description()    
+        return self.descriptions
+    
+    def get_random_description(self):
+        return random.choice(self.random_descriptions)
         
     def resolve(self):
         for function in self.on_enter:
             function()
-   
-    def reset_descriptions(self):
+            
+    def reset_description(self):
         self.current_step = 0
         
     def reset(self):
-        self.reset_descriptions()
+        self.reset_description()
         for description in self.descriptions:
             treasure = description["treasure"]
             if treasure:
@@ -229,21 +209,19 @@ class StoryNode:
         for choice in self.choices:
             choice.reset()
             
-    def set_next_story_node(self, node):
+    def set_next_story_node(self, node): #change str to an actual StoryNode object
         self.next_story_node = node
-        
-    def connect_node(self, direction, node): #changes str to actual StoryNode object
-        self.directions[direction] = node
         
     def store_description(self, text, treasure=None):
         self.descriptions.append({"text" : text, "treasure" : treasure})
         
     def get_choices(self):
-        pass
+        return self.choices
+        
 class Choice:
-    def __init__(self, text: str, target: str, transition=None, exhaustible=False, required_flags=None, flag=None,):
+    def __init__(self, text: str, targets: str, transition=None, exhaustible=False, required_flags=None, flag=None,):
         self.text = text
-        self.target = target #will change to StoryNode object in Game.validation()
+        self.targets = [target] #will change to StoryNode object in Game.validation()
         self.required_flags = _ensure_list(required_flags, "requires")
         self.flag = flag #optional flag that will be set
         self.transition = transition #text that will be displayed when you transition to target node
@@ -258,8 +236,12 @@ class Choice:
         if self.flag:
             self.flags.add(flag)
             
-    def set_target(self, node) #change from str to StoryNode 
-        self.target = node
+    def set_target(self, node): #change from str to StoryNode
+        for target in self.targets:
+            self.target = node
+            
+    def get_target(self):
+        return random.choice(self.target)
         
     def reset(self):
         self.exhausted = False
