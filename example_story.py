@@ -1,41 +1,64 @@
-from textadventure import Game, run_cli
+from textadventure import Game, run_cli, Treasure
+import text
 
 #final clean up and then i'm done with this
 #changes to the validation perhaps
 #----Scene-----
 
-game = Game("Conversation Demo") #Game object
+game = Game("Trial of the heart") #Game object
+game.create_story_node(name="beginning", text=text.beginning, treasures=Treasure("test_item", "this is a description for the test_item"), default_next_node="forest")
+game.create_story_node(name="forest", text=text.forest, default_next_node="boulders")
+game.create_story_node(name="boulders", text=text.boulders, default_next_node="air")
+game.create_story_node(name="air", text=text.air, default_next_node="waterskin")
+game.create_story_node(name="waterskin", text=text.waterskin, treasures=Treasure("Waterskin", text.item_waterskin), default_next_node="amulet")
+game.create_story_node(name="amulet", text=text.amulet, treasures=Treasure("Ursine Amulet", text.item_amulet), default_next_node="what_now")
+game.create_story_node(name="what_now", text="What now?")
+game.create_choice(node="what_now", text="Enter the forest", transition=text.determination, target="darkwood")
 
-game.story_node(name="start", desc="Hey, where am i?", next_node="voice1")
-game.story_node(name="voice1", desc="You are where you are. Is there anything else you\'d like to know?")
-game.treasure(node="voice1", name="Amulet of truth", description="Beatiful amulet with a tiger\'s eye jewel in the middle")
-game.choice(node="voice1", desc="Yes", target="voice")
+game.create_story_node(name="darkwood", text=text.darkwood)
+game.create_choice(node="darkwood", text="traverse the woods", transition=text.travel, target=["darkwood_1", "darkwood_2" ,"darkwood_3", "darkwood_4", "darkwood_5"])
 
+game.create_story_node(name="darkwood_1", text="You come a cross a small clearing in the woods")
+game.create_choice(node="darkwood_1", text="traverse the woods", transition=text.travel, target=["darkwood_2" ,"darkwood_3", "darkwood_4", "darkwood_5"])
 
-game.story_node(name="voice", desc="What do you want to know?", next_node="wake_up")
-game.choice(node="voice", desc="Who are you?", target="who", exhaustible=True)
-game.choice(node="voice", desc="Where am i", target="where", exhaustible=True)
-game.choice(node="voice", desc="What is the meaning of all this?", target="what", exhaustible=True, visited_nodes=["who", "where"])
+game.create_story_node(name="darkwood_2", text="You come a cross a small forest pond")
+game.create_choice(node="darkwood_2", text="traverse the woods", transition=text.travel, target=["darkwood_1", "darkwood_3", "darkwood_4", "darkwood_5"])
 
-game.alternative(node="voice", name="alt_voice", desc="Hey you have something i\'d like perhaps we can strike up a deal?", required_items=["Amulet of truth"])
-game.choice(node="alt_voice", desc="What kind of deal", target="accept_deal")
-game.choice(node="alt_voice", desc="No way", target="wake_up")
+game.create_story_node(name="darkwood_3", text="You come a cross a hughely tall tree")
+game.create_choice(node="darkwood_3", text="traverse the woods", transition=text.travel, target=["darkwood_1", "darkwood_2", "darkwood_4", "darkwood_5"])
 
-game.story_node(name="accept_deal", desc="i\'m glad you saw it that way")
- 
+game.create_story_node(name="darkwood_4", text="You come a cross an abandoned hunting cabbin")
+game.create_choice(node="darkwood_4", text="traverse the woods", transition=text.travel, target=["darkwood_1", "darkwood_2" ,"darkwood_3", "darkwood_5"])
 
-
-game.story_node(name="what", desc="Nothing really", next_node="wake_up")
-game.story_node(name="who", desc="No one important really", next_node="voice")
-game.story_node(name="where", desc="Didn\'t you hear what i said", next_node="voice")
-game.story_node(name="wake_up", desc="Well this has been a waste of time. Time to wake up!")
+game.create_story_node(name="darkwood_5", text="You come a cross a hughely tall tree")
+game.create_choice(node="darkwood_5", text="traverse the woods", transition=text.travel, target=["darkwood_1", "darkwood_2" ,"darkwood_3", "darkwood_4"])
 
 
 
 
+'''
+game.story_node(name="darkwood", desc=text.darkwood, north="darkwood_1", south="darkwood_2", east="darkwood_3")
+game.story_node(name="darkwood_1", desc="You come to a dark clearing in the forrest", south="darkwood")
+game.story_node(name="darkwood_2", desc="You see a twisted tree", north="darkwood")
+game.story_node(name="darkwood_3", desc="You spot a huge tree that has been split down the middle by a lightning", west="darkwood")
+
+#a loop for when you get lost
+game.story_node(name="lost1_tall_tree", desc="you see a see darkwoods all around you", south="lost_2", north="lost_2", east="lost_2", west="lost_2")
+game.choice(node="lost_1", text="Climb a the tree", target="climb_a_tree")
+game.story_Node(name="climb_a_tree", desc="You begin to accend the tree. Just as you are about to reach the top you fall", target="lost1_tall_tree", exhaustible=True) 
+
+game.story_node(name="lost2_pond", desc="You come a cross a small pond", south="lost_3", 
+game.story_node(name="lost_2", desc="you are in a dark forrest", south="lost_3", north="lost_3", 
+game.story_node(name="lost_3", desc="You wander in the dark, with the tree trunks surrounding you from all sides", north="darkwood", south="darkwood", east="darkwood", west="darkwood"
+
+game.story_node(name="lost1_tall_tree", desc="You see a large tree, perhaps you could climb it to see better", south="lost_2", north="lost_2", east="lost_2", west="lost_2") #radom event1
+
+#game.treasure(node="waterskin", name="waterskin", desc=text.item_waterskin)
+#game.treasure(node="amulet", name="ursine amulet", desc=text.item_amulet)
+'''
 
 #----Validate----
-game.validate("start")
+game.validate("beginning")
 
 #----Run-------
 if __name__== "__main__":

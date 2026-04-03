@@ -8,8 +8,9 @@ class StateMachine:
         self.states = {}
         self.state = None
         
-    def change_state(self, name):
+    def change_state(self, name, **kwargs):
         self.state = self.states[name]
+        self.state.kwargs = kwargs
           
     def create_state(self, name, func):
         self.states[name] = State(self, func)
@@ -21,14 +22,11 @@ class State:
     def __init__(self, state_machine, func):
         self.func = func
         self.state_machine = state_machine
-        self.arguments = {}
+        self.kwargs = {}
         
     def run(self):
         clear_screen()
-        self.func(self.state_machine, **self.arguments)
-        
-    def set_arguments(self, **arguments):
-        self.arguments = arguments
+        self.func(self.state_machine, **self.kwargs)
         
         
 def run_cli(game):
@@ -50,39 +48,52 @@ def run_cli(game):
         q = lambda: state_machine.change_state("pop_up_menu"),
         )
         
-    while True:
+    while True: #game loop
         state_machine.run()
     
+#-------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------
 
 def run_game(state_machine):
     game = state_machine.game
-    render_story_node(game)
+    render_description(game)
+    render_post_message(game)
     render_treasure(game)
+    game.renderer.render()
     choices = render_choices(game)
-    advance_story(state_machine, choices)
     
-    
-#-----------------FUNCTIONS--------------
-
-def advance_story(state_machine, choices):
-
-    if choices:
-        user_input = input(">")
-        if user_input in state_machine.commands:
-            state_machine.commands[user_input]()
+    if not choices:
+        next_node = game.get_next_story_node()
+        if next_node:
+            input("Continue...")
+            game.change_story_node(next_node) #change to next_story_node
         else:
-            state_machine.game.resolve_input(user_input, choices)
+            state_machine.change_state("game_over") #game over
         return
         
-    #If no available choices and the next_story_node is set. Change to the next story_node >
-    elif state_machine.game.current_story_node.next_story_node:
-        state_machine.game.next_story_node()
-        input("\n(Press Enter)")
+    user_input = input(">")
+    handle_user_input(state_machine, user_input)
+           
+#-----------------FUNCTIONS--------------
+def handle_user_input(state_machine, user_input): #user_input should be something like: 1, 2, 3, 4
+    game = state_machine.game
+    if user_input in state_machine.commands: #execute a command
+        state_machine.commands[user_input]()
+        return
         
-    #If no available choices. Game over!
-    else:
-        state_machine.change_state("game_over")
-    
+    choices = game.get_choices()
+    if user_input in choices.keys():
+        choice = choices[user_input]
+        resolve_choice(game, choice) 
+       
+            
+def resolve_choice(game, choice):
+    if choice.transition:
+        render_text(choice.transition)
+        input("Continue...")
+    choice.resolve()
+    game.change_story_node(game.get_target(choice))
+        
 def quit_game():
     print("Quitting game...")
     quit()
@@ -128,8 +139,7 @@ def inventory_menu(state_machine):
     
     choice = input("> ")
     if choice in inventory.keys():
-        state_machine.change_state("item_menu")
-        state_machine.state.set_arguments(item = inventory[choice]) #
+        state_machine.change_state("item_menu", item=inventory[choice])
         
     elif choice == f"{len(inventory) + 1}":
         state_machine.change_state("run_game")
@@ -142,7 +152,7 @@ def item_menu(state_machine, item):
     
 
 def game_over(state_machine):
-    info(f"{state_machine.game.current_story_node.description}\n") #game over StoryNode displaying the text for one frame and then changing the state to game_over seems a bit redundant. Perhaps rework this.
+    render_description(state_machine.game) #game over StoryNode displaying the text for one frame and then changing the state to game_over seems a bit redundant. Perhaps rework this.
     error("Game over!\n")
 
     print("1. Return to main menu\n2. Quit game")
@@ -153,50 +163,6 @@ def game_over(state_machine):
         state_machine.change_state("main_menu")
     elif i == "2":
         quit_game()
-
-#----------------Rendering-------------------
-def render_title(title):
-    print("*" * (len(title) + 4))
-    print(f"* {title.upper()} *")
-    print("*" * (len(title) + 4))
-    print()
-    
-    
-def render_story_node(game):
-    info(f"{game.current_story_node.description}\n")
-    
-
-def render_treasure(game):
-    treasures = game.get_treasures()
-    if treasures:
-        for treasure in treasures:
-            print(f"{treasure.name} added to inventory")
-            game.add_item(treasure)
-    else:
-        return
-        
-def render_choices(game):
-    choices = game.get_choices()
-    if choices:
-        for key, choice in choices.items():
-            print(f"{key}. {choice.description}")
-        return choices
-    else:
-        return False
-
-def render_inventory(state_machine): #render the content of the bag
-    render_title("Backpack")
-    inventory = state_machine.game.get_inventory()
-    if inventory:
-        for key, item in inventory.items():
-            print(f"{key}. {item.name}")
-    else:
-        print("Backpack is empty")
-
-    print(f"{len(state_machine.game.inventory) + 1}. Close backpack")
-    return inventory
-    
-#----------------------------------------------------
 
 if __name__ == "__main__":
     main()
