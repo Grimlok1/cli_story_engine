@@ -1,4 +1,4 @@
-from textadventure.ui import error, success, info, title
+from textadventure.text_color import error, success, info, title
 import os
 
 

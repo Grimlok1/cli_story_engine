@@ -1,10 +1,10 @@
 import random
 import types
-from textadventure.ui import error, success, info, title
+from textadventure.text_color import error, success, info, title
 
 class Game: #Game object is used to create all other objects
     def __init__(self, name):
-        self.name
+        self.name = name
         self.inventory = []
         self.flags = []
         self.story_nodes = {} #all story_nodes
@@ -243,7 +243,6 @@ class StoryNode:
         
         #set by game.alternative()
         self.required_flags = list()
-        self.message
         
     '''    
     def add_movement(self, directions):
