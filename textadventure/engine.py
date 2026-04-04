@@ -10,7 +10,7 @@ class Game: #Game object is used to create all other objects
         self.story_nodes = {} #all story_nodes
         self.counters = []
         self.start_node = None
-        self.current_node = None
+        self.current_story_node = None
         self.flag_manager = FlagManager()
         self.renderer = Renderer()
         self.inventory_manager = InventoryManager()
@@ -66,7 +66,7 @@ class Game: #Game object is used to create all other objects
             self.inventory.append(item)
             item.take()
     def update_counters(self):
-        for counter in self.counters.values():
+        for counter in self.counters:
             if counter.on:
                 counter.update()
         
