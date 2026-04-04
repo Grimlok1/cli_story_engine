@@ -1,6 +1,6 @@
 import random
 import types
-from ui import error, success, info, title
+from textadventure.ui import error, success, info, title
 
 class Game: #Game object is used to create all other objects
     def __init__(self, name):

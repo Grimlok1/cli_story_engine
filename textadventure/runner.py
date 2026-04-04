@@ -1,4 +1,4 @@
-from ui import error, success, info, title
+from textadventure.ui import error, success, info, title
 import os
 
 
