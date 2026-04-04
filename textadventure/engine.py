@@ -1,5 +1,6 @@
 import random
 import types
+from ui import error, success, info, title
 
 class Game: #Game object is used to create all other objects
     def __init__(self, name):
@@ -18,7 +19,7 @@ class Game: #Game object is used to create all other objects
         if counter.count > len(messages) - 1:
             msg = messages[-1]
         else:
-            msg = message[counter.count]
+            msg = messages[counter.count]
         self.current_story_node.set_post_message(msg) 
         
     def get_inventory(self):
@@ -40,7 +41,7 @@ class Game: #Game object is used to create all other objects
         
         
     def get_treasures(self):
-        treasures = current_story_node.get_treasures()
+        treasures = self.current_story_node.get_treasures()
         return [treasure for treasure in self.treasures if self.check_for_flags(treasure)]
         
     def get_next_story_node(self):
@@ -80,7 +81,7 @@ class Game: #Game object is used to create all other objects
     def resolve_choice(self, choice):
         choice.resolve()#
         if choice.flag:
-            set_flag(choice.flag) 
+            self.set_flag(choice.flag) 
         self.change_story_node(choice.target)
         return True
         
@@ -93,7 +94,6 @@ class Game: #Game object is used to create all other objects
         #reset story_nodes
         for story_node in self.story_nodes.values():
             story_node.reset()
-    def 
 
     #----------create objects---------------
     def create_story_node(self, *, name, text, **optional_arguments):
@@ -107,7 +107,7 @@ class Game: #Game object is used to create all other objects
         
     def create_description(self, *, node, text, **optional_arguments):
         story_node = _get_story_node(self, node)
-        story_node.descriptions.add_description(Description(text, forbidden_flags, required_flags))
+        story_node.descriptions.add_description(Description(text, **optional_arguments))
         
     def next_story_node(self, *, node, next_node, **parameters):
         node = _get_story_node(self, node)
@@ -117,7 +117,7 @@ class Game: #Game object is used to create all other objects
         self.timer = Timer(duration)
         
     def create_counter(self, name, max_count, nodes, **optional_arguments):
-        self.counters.[name] = Counter(max_count, nodes, **optinal_arguments)
+        self.counters[name] = Counter(max_count, nodes, **optional_arguments)
         
     def on_enter(self, node, function, *args):
         story_node = _get_story_node(self, node)
@@ -163,7 +163,11 @@ class Renderer:
             print(post_message)
         choices = node.get_choices(flags)
         self.render_choices(choices)
-        
+
+    def render_description(self, game):
+        print(game.current_story_node.get_description(game.flags))
+
+
     def render_inventory(self, game, inventory): #render the content of the bag
         self.render_title("Backpack")
         inventory = game.inventory_manager.get_inventory(inventory)
@@ -174,7 +178,7 @@ class Renderer:
             print("Backpack is empty")
         print(f"{len(inventory) + 1}. Close backpack")
         
-    def render_treasure(self,node):
+    def render_treasure(self, game, node):
         treasures = game.current_story_node.get_treasures()
         for treasure in treasures:
             if not treasure.taken:
@@ -186,12 +190,15 @@ class Renderer:
         print(f"* {title.upper()} *")
         print("*" * (len(title) + 4))
         print()
+
+    def render_text(self, text):
+        print(text)
         
 class InventoryManager:
     def get_inventory(self, inventory):
         return {str(index) : element for (index, element) in enumerate(inventory, start=1)}
         
-    def check_for_item(self, inventory, item_name)
+    def check_for_item(self, inventory, item_name):
         return item_name in inventory
         
     def add_item(self, item, inventory):
@@ -204,7 +211,7 @@ class FlagManager:
         if flag not in self.flags:
             self.flags.add(flag)
             
-    def has_flags(self, game, flags)
+    def has_flags(self, game, flags):
         def has_flag(self, game, flag):
             if flag.startswith("has:"):
                 item_name = flag.split("has:")[1]
@@ -247,7 +254,7 @@ class StoryNode:
                 raise ValueError(f"{key} is not a valid movement choice")
     '''
     #a function for adding alternative next_nodes
-    def  (self, next_node, **parameters):
+    def  add_next_node(self, next_node, **parameters):
         for key in parameters.keys():
             if key not in list("required_flags", "forbidden_flags"):
                 raise ValueError(f"{key} is not a valid parameter")
@@ -293,7 +300,7 @@ class StoryNode:
         return message
         
     def get_choices(self, game):
-        return {str(index): choice for index, choice in enumerate(choices, start=1)
+        return {str(index): choice for index, choice in enumerate(self.choices, start=1)
             if game.flag_manager.has_flags(game, choice.required_flags) and not game.flag_manager.has_flags(game, choice.forbidden_flags)
         }
         
@@ -301,7 +308,7 @@ class StoryNode:
         for description in self.descriptions:
             if game.flag_manager.has_flags(game, description.required_flags) and not game.flag_manager.has_flags(game, description.forbidden_flags):
                 return description
-        return default_description
+        return self.default_description
         
     def get_treasures(self, game):
         return [treasure for treasure in self.treasures if treasure.take(game)]
@@ -347,7 +354,7 @@ class Treasure:
     def reset(self):
         self.taken = False
         
-class counter:
+class Counter:
     def __init__(self, max_count, nodes, on_update=None, on_max=None):
         self.nodes = _ensure_list_of_types(nodes, str) #change to StoryNode objects in validation
         self.counter = 0
@@ -362,12 +369,12 @@ class counter:
             
         if node in self.nodes:
             self.increase_count
-            if on_update:
+            if self.on_update:
                 self.on_update()
                        
     def increase_count(self):
         self.counter += 1
-        if self.count == max_count:
+        if self.count == self.max_count:
             if self.on_max_count:
                 self.on_max_count()
             self.stop()
@@ -432,7 +439,7 @@ def _ensure_list_of_types(value, value_types):
         
     elif isinstance(value, list):
         if not all(isinstance(elem, value_types) for elem in value):
-            TypeError(f"Element must be of types:{value_types} not {type(eleme)}")
+            TypeError(f"Element must be of types:{value_types}")
         return value 
         
     else:
@@ -450,7 +457,7 @@ def _ensure_list(value, name):
     return value
     
 def _ensure_type(value, value_types):
-    if value and not isintance(value, value_types):
+    if value and not isinstance(value, value_types):
         raise ValueError(f"{value} is not a valid type")
         
 def _get_story_node(game, name):

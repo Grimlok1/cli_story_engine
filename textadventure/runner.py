@@ -5,6 +5,8 @@ import os
 class StateMachine:
     def __init__(self, game):
         self.game = game
+        self.rederer = game.renderer
+        self.current_node = game.current_story_node
         self.states = {}
         self.state = None
         
@@ -56,13 +58,9 @@ def run_cli(game):
 
 def run_game(state_machine):
     game = state_machine.game
-    render_description(game)
-    render_post_message(game)
-    render_treasure(game)
-    game.renderer.render()
-    choices = render_choices(game)
+    game.renderer.render_node(game, game.current_story_node, game.flags)
     
-    if not choices:
+    if not game.current_story_node.choices:
         next_node = game.get_next_story_node()
         if next_node:
             input("Continue...")
@@ -89,7 +87,7 @@ def handle_user_input(state_machine, user_input): #user_input should be somethin
             
 def resolve_choice(game, choice):
     if choice.transition:
-        render_text(choice.transition)
+        game.renderer.render_text(choice.transition)
         input("Continue...")
     choice.resolve()
     game.change_story_node(game.get_target(choice))
@@ -113,9 +111,8 @@ def pop_up_menu(state_machine):
     elif i == "3":
         quit_game()
     
-    
 def main_menu(state_machine):
-    render_title(state_machine.game.name)
+    state_machine.renderer.render_title(state_machine.game.name)
     print("1. Start game\n2. Help\n3. Quit game")
 
     i = input("> ")
@@ -128,14 +125,15 @@ def main_menu(state_machine):
         quit_game()
         
 def help_menu(state_machine):
-    render_title("HELP MENU") 
+    state_machine.renderer.render_title("HELP MENU") 
     info("Type 'bag', 'b', 'inventory' or 'i' if you wish to access player inventory")
     info("Type 'Quit' or 'q' if you wish to quit the game\n")
     input("(Press Enter to return to Main menu)")
     state_machine.change_state("main_menu")
         
 def inventory_menu(state_machine):
-    inventory = render_inventory(state_machine)
+    renderer = state_machine.game.renderer
+    inventory = renderer.render_inventory(state_machine)
     
     choice = input("> ")
     if choice in inventory.keys():
@@ -145,14 +143,13 @@ def inventory_menu(state_machine):
         state_machine.change_state("run_game")
         
 def item_menu(state_machine, item):
-    render_title(item.name)
+    state_machine.renderer.render_title(item.name)
     info(f"{item.description}\n")
     input("(Press enter to return)")
     state_machine.change_state("inventory_menu")
     
-
 def game_over(state_machine):
-    render_description(state_machine.game) #game over StoryNode displaying the text for one frame and then changing the state to game_over seems a bit redundant. Perhaps rework this.
+    state_machine.renderer.render_description(state_machine.game) #game over StoryNode displaying the text for one frame and then changing the state to game_over seems a bit redundant. Perhaps rework this.
     error("Game over!\n")
 
     print("1. Return to main menu\n2. Quit game")
@@ -163,6 +160,3 @@ def game_over(state_machine):
         state_machine.change_state("main_menu")
     elif i == "2":
         quit_game()
-
-if __name__ == "__main__":
-    main()
