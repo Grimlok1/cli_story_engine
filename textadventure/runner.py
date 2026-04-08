@@ -1,46 +1,20 @@
 from .text_color import error, success, info, title
+from .state_machine import StateMachine
 import os
-
-
-class StateMachine:
-    def __init__(self, game):
-        self.game = game
-        self.renderer = game.renderer
-        self.states = {}
-        self.state = None
-        
-    def change_state(self, name, **kwargs):
-        self.state = self.states[name]
-        self.state.kwargs = kwargs
-          
-    def create_state(self, name, func):
-        self.states[name] = State(self, func)
-        
-    def run(self):
-        self.state.run()
-        
-class State:
-    def __init__(self, state_machine, func):
-        self.func = func
-        self.state_machine = state_machine
-        self.kwargs = {}
-        
-    def run(self):
-        clear_screen()
-        self.func(self.state_machine, **self.kwargs)
-        
-        
-def run_cli(game):
+     
+def run_game(game):
     state_machine = StateMachine(game)
     state_machine.create_state("main_menu", main_menu)
-    state_machine.create_state("run_game", run_game)
+    state_machine.create_state("game_loop", game_loop)
     state_machine.create_state("inventory_menu", inventory_menu)
     state_machine.create_state("game_over", game_over)
     state_machine.create_state("pop_up_menu", pop_up_menu)
     state_machine.create_state("help_menu", help_menu)
     state_machine.create_state("item_menu", item_menu)
-    state_machine.change_state("main_menu") 
-    state_machine.commands = dict(
+    state_machine.change_state("main_menu")
+
+    #Commands for opening the inventory and quiting the game
+    state_machine.commands = dict( 
         bag = lambda: state_machine.change_state("inventory_menu"),
         b = lambda: state_machine.change_state("inventory_menu"),
         i = lambda: state_machine.change_state("inventory_menu"),
@@ -52,111 +26,90 @@ def run_cli(game):
     while True: #game loop
         state_machine.run()
     
-#-------------------------------------------------------------------------------------------
-#-------------------------------------------------------------------------------------------
-
-def run_game(state_machine):
-    node = state_machine.game.current_story_node
-    choices = state_machine.game.current_story_node.resolve(state_machine.game)
+def game_loop(sm):
+    node = sm.game.current_node
+    choices = node.resolve(sm.game)
     if not choices:
         next_node = node.get_next_node()
         if next_node:
             input("Continue...")
-            state_machine.game.change_story_node(next_node) #change to next_story_node
+            sm.game.change_node(next_node) #change to next_story_node
         else:
-            state_machine.change_state("game_over") #game over
+            sm.change_state("game_over") #game over
         return
         
     user_input = input(">")
-    handle_user_input(state_machine, user_input)
+    if user_input in sm.commands: #executes a command like, open inventory
+        sm.commands[user_input]()
+    else:
+        sm.game.input_handler(user_input)
            
-#-----------------FUNCTIONS--------------
-def handle_user_input(state_machine, user_input): #user_input should be something like: 1, 2, 3, 4
-    if user_input in state_machine.commands: #execute a command
-        state_machine.commands[user_input]()
-        return
-        
-    choices = state_machine.game.current_story_node.get_choices(state_machine.game)
-
-    print(choices)
-    if user_input in choices.keys():
-        print("if user_input")
-        choice = choices[user_input]
-        resolve_choice(state_machine.game, choice)
-       
-            
-def resolve_choice(game, choice):
-    if choice.transition:
-        game.renderer.render_text(choice.transition)
-        input("Continue...")
-    choice.resolve()
-    game.change_story_node(game.get_target(choice))
-        
-def quit_game():
-    print("Quitting game...")
+#-----------------FUNCTIONS--------------        
+def quit_game(game):
+    game.renderer.render_text("Quitting game...")
     quit()
     
-def clear_screen():
-    os.system("cls" if os.name == "nt" else "clear")
-     
 #------------------------MENUS---------------
-def pop_up_menu(state_machine):
-    print("Are you sure you want to quit?\n")
-    print("1. Continue\n2. Main menu\n3. Exit game")
+def pop_up_menu(sm):
+    sm.renderer.render_text("Are you sure you want to quit?\n")
+    sm.renderer.render_text("1. Continue\n2. Main menu\n3. Exit game")
     i = input("> ")
     if i == "1":
-        state_machine.change_state("run_game")
+        sm.change_state("game_loop")
     elif i == "2":
-        state_machine.change_state("main_menu")
+        sm.change_state("main_menu")
     elif i == "3":
         quit_game()
     
-def main_menu(state_machine):
-    state_machine.renderer.render_title(state_machine.game.name)
-    print("1. Start game\n2. Help\n3. Quit game")
+def main_menu(sm):
+    sm.renderer.render_title(sm.game.name)
+    sm.renderer.render("1. Start game\n2. Help\n3. Quit game")
 
     i = input("> ")
     if i == "1":
-        state_machine.game.new_game()
-        state_machine.change_state("run_game")
+        sm.game.new_game()
+        sm.change_state("game_loop")
     elif i == "2":
-        state_machine.change_state("help_menu")
+        sm.change_state("help_menu")
     elif i == "3":
         quit_game()
         
-def help_menu(state_machine):
-    state_machine.renderer.render_title("HELP MENU") 
-    info("Type 'bag', 'b', 'inventory' or 'i' if you wish to access player inventory")
-    info("Type 'Quit' or 'q' if you wish to quit the game\n")
+def help_menu(sm):
+    sm.renderer.render_title("HELP MENU") 
+    sm.renderer.render_text(info("Type 'bag', 'b', 'inventory' or 'i' if you wish to access player inventory"))
+    sm.renderer.render_text(info("Type 'Quit' or 'q' if you wish to quit the game\n"))
     input("(Press Enter to return to Main menu)")
-    state_machine.change_state("main_menu")
+    sm.change_state("main_menu")
         
-def inventory_menu(state_machine):
-    renderer = state_machine.game.renderer
-    inventory = renderer.render_inventory(state_machine)
-    
+def inventory_menu(sm):
+    sm.game.renderer.render_title("Backpack")
+    inventory = sm.inventory_manager.get_inventory(sm.game.inventory)
+    if inventory:
+        for key, item in inventory.items():
+            sm.renderer.render_text(f"{key}. {item.name}")
+        sm.renderer.render_text(f"{len(inventory) + 1}. Close backpack")
+    else:
+        sm.game.renderer.render_text("Backpack is empty")
+        
     choice = input("> ")
     if choice in inventory.keys():
-        state_machine.change_state("item_menu", item=inventory[choice])
+        sm.change_state("item_menu", item=inventory[choice])
         
     elif choice == f"{len(inventory) + 1}":
-        state_machine.change_state("run_game")
+        sm.change_state("game_loop")
         
-def item_menu(state_machine, item):
-    state_machine.renderer.render_title(item.name)
-    info(f"{item.description}\n")
+def item_menu(sm, item):
+    sm.renderer.render_title(item.name)
+    sm.renderer.render(info(f"{item.description}\n"))
     input("(Press enter to return)")
-    state_machine.change_state("inventory_menu")
+    sm.change_state("inventory_menu")
     
-def game_over(state_machine):
-    state_machine.renderer.render_description(state_machine.game) #game over StoryNode displaying the text for one frame and then changing the state to game_over seems a bit redundant. Perhaps rework this.
-    error("Game over!\n")
-
-    print("1. Return to main menu\n2. Quit game")
-    
+def game_over(sm):
+    sm.renderer.render_text(sm.game) #game over StoryNode displaying the text for one frame and then changing the state to game_over seems a bit redundant. Perhaps rework this.
+    sm.renderer.render_text(error("Game over!\n"))
+    sm.renderer.render_text("1. Return to main menu\n2. Quit game")
     i = input("> ")
-    
     if i == "1":
-        state_machine.change_state("main_menu")
+        sm.change_state("main_menu")
     elif i == "2":
-        quit_game()
+        quit_game(sm.game)

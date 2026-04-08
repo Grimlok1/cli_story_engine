@@ -1,30 +1,15 @@
 import random
 #StoryNode can have different conditional variants based on flags  
-class StoryNode:
+class Node:
     def __init__(self, name, text, default_next_node=None, treasures=None):
         self.name = name
         self.default_description = Description(text)
-        self.descriptions = []
         self.default_next_node = default_next_node #next_story_node is a string, change to StoryNode in validation
+        self.descriptions = []
         self.next_nodes = []
         self.choices = []
         self.treasures = _ensure_list_of_types(treasures, Treasure)
-        self.on_enter = []
-        self.on_update = None
-        self.post_message = ""
         
-        #set by game.alternative()
-        self.required_flags = list()
-        
-    '''    
-    def add_movement(self, directions):
-        for key, node in directions.items():
-            if key in ["north", "south", "east", "west"]:
-                self.choices.append(Choice(f"Move {key}", target=node))
-            else:
-                raise ValueError(f"{key} is not a valid movement choice")
-    '''
-    #a function for adding alternative next_nodes
     def  add_next_node(self, next_node, **parameters):
         for key in parameters.keys():
             if key not in list("required_flags", "forbidden_flags"):
@@ -46,9 +31,6 @@ class StoryNode:
         
     def set_post_message(self, message):
         self.post_message = message
-        
-    def add_description(self, description):
-        self.append(description)
         
     def on_update(self):
         if self.on_update:
@@ -101,13 +83,13 @@ class StoryNode:
     
         
 class Choice:
-    def __init__(self, text, targets, transition=None, exhaustible=False, forbidden_flags = None, required_flags=None, flag=None,):
+    def __init__(self, text, target_nodes, transition_text=None, exhaustible=False, forbidden_flags = None, required_flags=None, flag=None,):
         self.text = text
-        self.targets = _ensure_list_of_types(targets, str) #will change to StoryNode object in Game.validation()
+        self.target_nodes = _ensure_list_of_types(target_nodes, str)# target_nodes will be changed into Node objects in the Validation
         self.required_flags = _ensure_list_of_types(required_flags, str)
         self.forbidden_flags = _ensure_list_of_types(forbidden_flags, str)
         self.flag = flag #optional flag that will be set
-        self.transition = transition #text that will be displayed when you transition to target node
+        self.transition_text = transition_text #text that will be displayed when you transition to target node
         
         #Only set exhaustible to true if you are going to be returning to the storynode and you don't want the choice to show up again.
         self.exhaustible = exhaustible
@@ -149,79 +131,12 @@ class Treasure:
         if game.flag_manager.has_flags(game, self.required_flags) and not game.flag_manager.has_flags(game, self.forbidden_flags):
             self.add_treasure(game)
             return self
-
         else:
             return None 
         
     def reset(self):
         self.taken = False
-        
-class Counter:
-    def __init__(self, max_count, nodes, on_update=None, on_max=None):
-        self.nodes = _ensure_list_of_types(nodes, str) #change to StoryNode objects in validation
-        self.counter = 0
-        self.max_count = max_count
-        self.on_update = _ensure_type(on_update, types.FuntionType) #a function
-        self.on_max_count = _ensure_type(on_max, types.FuntionType)
-        self.on  = True
-         
-    def update(self, node):
-        if not self.on:
-            return
             
-        if node in self.nodes:
-            self.increase_count
-            if self.on_update:
-                self.on_update()
-                       
-    def increase_count(self):
-        self.counter += 1
-        if self.count == self.max_count:
-            if self.on_max_count:
-                self.on_max_count()
-            self.stop()
-            self.counter = 0
-
-    def stop(self):
-        self.on = False
-        
-    def start(self):
-        self.on = True
-        
-class Timer:
-    def __init__(self, duration, nodes):
-        self.duration = duration
-        self.callbacks = {}
-        self.time = 0
-        self.on = False
-        
-    def start(self):
-        self.on = True
-        
-    def stop(self):
-        self.on = False
-        
-    def reset(self):
-        self.time = 0
-        
-    def add_callback(self, time, function):
-        if time in self.callbacks.keys():
-            self.callbacks[time].append(function)
-        else:
-            self.callbacks[time] = [function]
-            
-    def update(self):
-        if self.on == False:
-            return
-            
-        if self.time >= self.duration:
-            self.stop()
-            
-        if self.time in self.callbacks.keys():
-            for function in self.callbacks[self.time]:
-                function()
-        self.time += 1
-        
 class Description:
     def __init__(self, text, forbidden_flags=None, required_flags=None):
         self.text = text
@@ -231,6 +146,8 @@ class Description:
     def get_description(self, game):
         if game.flag_manager.has_flags(game.flags, self.required_flags) and game.flag_manager.no_flags(game.flags, self.forbidden_flags):
             return self.text
+        
+
         
 #--------------Functions------------------
 def _ensure_list_of_types(value, value_types):
@@ -247,24 +164,3 @@ def _ensure_list_of_types(value, value_types):
         
     else:
         raise TypeError(f"value must be of types:{value_types} or list not {type(value)}")
-        
-def _ensure_list(value, name):
-    if not value:
-        value = []
-        
-    elif not isinstance(value, list):
-        
-        raise TypeError(
-            f"{name} must be an iterable of strings"
-        )
-    return value
-    
-def _ensure_type(value, value_types):
-    if value and not isinstance(value, value_types):
-        raise ValueError(f"{value} is not a valid type")
-        
-def _get_story_node(game, name):
-    try:
-        return game.story_nodes[name]
-    except KeyError:
-        raise ValueError(f"StoryNode {name} does not exist")
