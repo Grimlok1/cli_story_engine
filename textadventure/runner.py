@@ -1,12 +1,11 @@
-from text_color import error, success, info, title
+from .text_color import error, success, info, title
 import os
 
 
 class StateMachine:
     def __init__(self, game):
         self.game = game
-        self.rederer = game.renderer
-        self.current_node = game.current_story_node
+        self.renderer = game.renderer
         self.states = {}
         self.state = None
         
@@ -57,14 +56,13 @@ def run_cli(game):
 #-------------------------------------------------------------------------------------------
 
 def run_game(state_machine):
-    game = state_machine.game
-    game.renderer.render_node(game, game.current_story_node, game.flags)
-    
-    if not game.current_story_node.choices:
-        next_node = game.get_next_story_node()
+    node = state_machine.game.current_story_node
+    choices = state_machine.game.current_story_node.resolve(state_machine.game)
+    if not choices:
+        next_node = node.get_next_node()
         if next_node:
             input("Continue...")
-            game.change_story_node(next_node) #change to next_story_node
+            state_machine.game.change_story_node(next_node) #change to next_story_node
         else:
             state_machine.change_state("game_over") #game over
         return
@@ -74,15 +72,17 @@ def run_game(state_machine):
            
 #-----------------FUNCTIONS--------------
 def handle_user_input(state_machine, user_input): #user_input should be something like: 1, 2, 3, 4
-    game = state_machine.game
     if user_input in state_machine.commands: #execute a command
         state_machine.commands[user_input]()
         return
         
-    choices = game.get_choices()
+    choices = state_machine.game.current_story_node.get_choices(state_machine.game)
+
+    print(choices)
     if user_input in choices.keys():
+        print("if user_input")
         choice = choices[user_input]
-        resolve_choice(game, choice) 
+        resolve_choice(state_machine.game, choice)
        
             
 def resolve_choice(game, choice):
