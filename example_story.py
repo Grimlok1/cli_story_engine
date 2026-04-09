@@ -1,5 +1,6 @@
-from textadventure import Game
+from textadventure import Game, run_game
 from textadventure import StoryFactory
+from textadventure import Treasure
 import text
 
 game = Game("Trial of the heart") #Game object
@@ -38,4 +39,4 @@ story_data = f.build(start_node_name="beginning")
 game = Game(name="Trial of the heart", data=story_data)
 #----Run-------
 if __name__== "__main__":
-    run_cli(game)
+    run_game(game)

@@ -10,7 +10,7 @@ class StoryFactory:
         self.nodes[name] = node
         return node
     
-    def treasure(self)
+    def treasure(self):
         pass
 
     def choice(self, *, node_name, text, target, **optional_arguments):

@@ -1,6 +1,5 @@
 from .text_color import error, success, info, title
 from .state_machine import StateMachine
-import os
      
 def run_game(game):
     state_machine = StateMachine(game)
@@ -35,7 +34,7 @@ def game_loop(sm):
             input("Continue...")
             sm.game.change_node(next_node) #change to next_story_node
         else:
-            sm.change_state("game_over") #game over
+            sm.change_state("game_over", text=f"{node.get_description(sm.game)}") #game over
         return
         
     user_input = input(">")
@@ -44,15 +43,10 @@ def game_loop(sm):
     else:
         sm.game.input_handler(user_input)
            
-#-----------------FUNCTIONS--------------        
-def quit_game(game):
-    game.renderer.render_text("Quitting game...")
-    quit()
-    
 #------------------------MENUS---------------
 def pop_up_menu(sm):
-    sm.renderer.render_text("Are you sure you want to quit?\n")
-    sm.renderer.render_text("1. Continue\n2. Main menu\n3. Exit game")
+    sm.renderer.normal("Are you sure you want to quit?\n")
+    sm.renderer.normal("1. Continue\n2. Main menu\n3. Exit game")
     i = input("> ")
     if i == "1":
         sm.change_state("game_loop")
@@ -62,8 +56,8 @@ def pop_up_menu(sm):
         quit_game()
     
 def main_menu(sm):
-    sm.renderer.render_title(sm.game.name)
-    sm.renderer.render("1. Start game\n2. Help\n3. Quit game")
+    title(sm.renderer, sm.game.name)
+    sm.renderer.normal("1. Start game\n2. Help\n3. Quit game")
 
     i = input("> ")
     if i == "1":
@@ -75,21 +69,21 @@ def main_menu(sm):
         quit_game()
         
 def help_menu(sm):
-    sm.renderer.render_title("HELP MENU") 
-    sm.renderer.render_text(info("Type 'bag', 'b', 'inventory' or 'i' if you wish to access player inventory"))
-    sm.renderer.render_text(info("Type 'Quit' or 'q' if you wish to quit the game\n"))
+    title(sm.renderer, "HELP MENU") 
+    sm.renderer.info(info("Type 'bag', 'b', 'inventory' or 'i' if you wish to access player inventory"))
+    sm.renderer.info(info("Type 'Quit' or 'q' if you wish to quit the game\n"))
     input("(Press Enter to return to Main menu)")
     sm.change_state("main_menu")
         
 def inventory_menu(sm):
-    sm.game.renderer.render_title("Backpack")
+    title(sm.renderer, "Backpack")
     inventory = sm.inventory_manager.get_inventory(sm.game.inventory)
     if inventory:
         for key, item in inventory.items():
-            sm.renderer.render_text(f"{key}. {item.name}")
-        sm.renderer.render_text(f"{len(inventory) + 1}. Close backpack")
+            sm.renderer.normal(f"{key}. {item.name}")
+        sm.renderer.normal(f"{len(inventory) + 1}. Close backpack")
     else:
-        sm.game.renderer.render_text("Backpack is empty")
+        sm.game.renderer.normal("Backpack is empty")
         
     choice = input("> ")
     if choice in inventory.keys():
@@ -99,17 +93,28 @@ def inventory_menu(sm):
         sm.change_state("game_loop")
         
 def item_menu(sm, item):
-    sm.renderer.render_title(item.name)
-    sm.renderer.render(info(f"{item.description}\n"))
+    sm.renderer.normal(item.name)
+    sm.renderer.info(f"{item.description}\n")
     input("(Press enter to return)")
     sm.change_state("inventory_menu")
     
-def game_over(sm):
-    sm.renderer.render_text(sm.game) #game over StoryNode displaying the text for one frame and then changing the state to game_over seems a bit redundant. Perhaps rework this.
-    sm.renderer.render_text(error("Game over!\n"))
-    sm.renderer.render_text("1. Return to main menu\n2. Quit game")
+def game_over(sm, text):
+    sm.renderer.info(text) #game over StoryNode displaying the text for one frame and then changing the state to game_over seems a bit redundant. Perhaps rework this.
+    sm.renderer.info(error("Game over!\n"))
+    sm.renderer.normal("1. Return to main menu\n2. Quit game")
     i = input("> ")
     if i == "1":
         sm.change_state("main_menu")
     elif i == "2":
         quit_game(sm.game)
+        
+#-----------------FUNCTIONS--------------        
+def quit_game(game):
+    game.renderer.normal("Quitting game...")
+    quit()
+
+def title(renderer, text):
+    renderer.normal("*" * (len(title) + 4))
+    renderer.normal(f"* {title.upper()} *")
+    renderer.normal("*" * (len(title) + 4))
+    print()
